@@ -88,6 +88,9 @@ class DesugarTask extends DefaultTask {
     @Input
     @Optional
     List<String> rewriteCoreLibraryPrefix;
+    @Input
+    @Optional
+    List<String> additionalJvmArgs;
 
     @InputDirectory
     @Optional
@@ -202,9 +205,14 @@ class DesugarTask extends DefaultTask {
 
         def desugarExecClasspath = project.files(getJavaExecClasspath(project));
 
+        if(additionalJvmArgs == null) {
+            additionalJvmArgs = new ArrayList<String>();
+        }
+
         project.javaexec {
             classpath(desugarExecClasspath)
             main = 'com.google.devtools.build.android.desugar.Desugar'
+            jvmArgs = additionalJvmArgs
             args = desugarExecArgs
             systemProperties['jdk.internal.lambda.dumpProxyClasses'] = lambdaDirFile.getAbsolutePath()
         }
