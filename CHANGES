@@ -1,4 +1,5 @@
-[1.0.1-SNAPSHOT]
+[1.0.1]
+Fix input of regular/bootstrap classpath
 
 [1.0.0]
 Initial release

@@ -104,13 +104,8 @@ class DesugarTask extends DefaultTask {
     @Optional
     DirectoryProperty lambdaDir;
 
-    @InputFiles
-    @Optional
-    FileCollection bootstrapClasspath;
-
-    @InputFiles
-    @Optional
-    FileCollection classpath;
+    FileCollection bootstrapClasspath = getProject().getLayout().files();
+    FileCollection classpath = getProject().getLayout().files();
 
     @OutputDirectory
     @Optional
@@ -156,14 +151,14 @@ class DesugarTask extends DefaultTask {
         }
 
         if(getClasspath() != null) {
-            for(File classpathFile : getClasspath().getFiles()) {
+            for(File classpathFile : getClasspath()) {
                 desugarExecArgs.add("--classpath_entry");
                 desugarExecArgs.add(classpathFile.getAbsolutePath());
             }
         }
 
         if(getBootstrapClasspath() != null) {
-            for(File bootstrapFile : getBootstrapClasspath().getFiles()) {
+            for(File bootstrapFile : getBootstrapClasspath()) {
                 desugarExecArgs.add("--bootclasspath_entry");
                 desugarExecArgs.add(bootstrapFile.getAbsolutePath());
             }
@@ -226,5 +221,23 @@ class DesugarTask extends DefaultTask {
             classpath.addAll(project.buildscript.configurations.classpath.getFiles())
             getJavaExecClasspath(project.rootProject, classpath)
         }
+    }
+
+    @InputFiles
+    public FileCollection getBootstrapClasspath() {
+        return this.bootstrapClasspath;
+    }
+
+    public void bootstrapClasspath(FileCollection bootstrapClasspath) {
+        this.bootstrapClasspath = this.bootstrapClasspath.plus(bootstrapClasspath);
+    }
+
+    @InputFiles
+    public FileCollection getClasspath() {
+        return this.classpath;
+    }
+
+    public void classpath(FileCollection classpath) {
+        this.classpath = this.classpath.plus(classpath);
     }
 }
