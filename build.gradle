@@ -34,7 +34,7 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 group = 'com.viridiansoftware'
-version = '1.0.1-SNAPSHOT'
+version = '1.0.1'
 description = 'Gradle plugin for Desugar'
 
 dependencies {
