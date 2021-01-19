@@ -20,9 +20,11 @@ import com.google.devtools.build.android.desugar.Desugar
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFile
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
@@ -78,88 +80,99 @@ class DesugarTask extends DefaultTask {
     int minSdkVersion = 19;
     @Input
     @Optional
-    List<String> dontRewriteCoreLibraryInvocation;
+    ListProperty<String> dontRewriteCoreLibraryInvocation = project.objects.listProperty(String.class);
     @Input
     @Optional
-    List<String> emulateCoreLibraryInterface;
+    ListProperty<String> emulateCoreLibraryInterface = project.objects.listProperty(String.class);
     @Input
     @Optional
-    List<String> retargetCoreLibraryMember;
+    ListProperty<String> retargetCoreLibraryMember = project.objects.listProperty(String.class);
     @Input
     @Optional
-    List<String> rewriteCoreLibraryPrefix;
+    ListProperty<String> rewriteCoreLibraryPrefix = project.objects.listProperty(String.class);
     @Input
     @Optional
-    List<String> additionalJvmArgs;
+    ListProperty<String> additionalJvmArgs = project.objects.listProperty(String.class);
 
     @InputDirectory
     @Optional
-    DirectoryProperty inputDir;
+    DirectoryProperty inputDir = project.objects.directoryProperty();
 
     @InputFile
     @Optional
-    File inputJar;
+    RegularFileProperty inputJar = project.objects.fileProperty();
 
     @InputDirectory
     @Optional
-    DirectoryProperty lambdaDir;
+    DirectoryProperty lambdaDir = project.objects.directoryProperty();
 
-    FileCollection bootstrapClasspath = getProject().getLayout().files();
-    FileCollection classpath = getProject().getLayout().files();
+    @InputFiles
+    @Optional
+    ConfigurableFileCollection bootstrapClasspath = project.objects.fileCollection();
+
+    @InputFiles
+    @Optional
+    ConfigurableFileCollection classpath = project.objects.fileCollection();
 
     @OutputDirectory
     @Optional
-    DirectoryProperty outputDir;
+    DirectoryProperty outputDir = project.objects.directoryProperty();
 
     @OutputFile
     @Optional
-    File outputJar;
+    RegularFileProperty outputJar = project.objects.fileProperty();
 
     @TaskAction
-    public void runTask() {
-        if(inputJar == null && getInputDir() == null) {
-            throw new GradleException("Either inputJar or inputDir (folder containing classes) must be declared");
-        }
-        if(outputJar == null && getOutputDir() == null) {
-            throw new GradleException("Either outputJar or outputDir (folder for classes) must be declared");
-        }
-
+    def runTask() {
         try {
+            RegularFile inputJar = this.inputJar.getOrNull();
+            RegularFile outputJar = this.outputJar.getOrNull();
+            Directory inputDir = this.inputDir.getOrNull();
+            Directory outputDir = this.outputDir.getOrNull();
+
+            if(inputJar == null && inputDir == null) {
+                throw new GradleException("Either inputJar or inputDir (folder containing classes) must be declared");
+            }
+            if(outputJar == null && outputDir == null) {
+                throw new GradleException("Either outputJar or outputDir (folder for classes) must be declared");
+            }
+
             List<String> desugarExecArgs = new ArrayList<String>();
 
             desugarExecArgs.add("--input");
-            if(getInputDir() != null && getInputDir().isPresent()) {
-                desugarExecArgs.add(getInputDir().get().asFile.getAbsolutePath());
+            if (inputDir != null && inputDir.asFile.exists()) {
+                desugarExecArgs.add(inputDir.asFile.getAbsolutePath());
             } else {
-                desugarExecArgs.add(inputJar.getAbsolutePath());
+                desugarExecArgs.add(inputJar.getAsFile().getAbsolutePath());
             }
 
             desugarExecArgs.add("--output");
-            if(getOutputDir() != null && getOutputDir().isPresent()) {
-                desugarExecArgs.add(getOutputDir().get().asFile.getAbsolutePath());
+            if (outputDir != null && outputDir.asFile.exists()) {
+                desugarExecArgs.add(outputDir.asFile.getAbsolutePath());
             } else {
-                desugarExecArgs.add(outputJar.getAbsolutePath());
+                desugarExecArgs.add(outputJar.getAsFile().getAbsolutePath());
             }
 
+            Directory lambdaDir = this.lambdaDir.getOrNull();
             File lambdaDirFile;
-            if(lambdaDir != null) {
-                lambdaDirFile = lambdaDir.get().asFile;
+            if (lambdaDir != null) {
+                lambdaDirFile = lambdaDir.asFile;
             } else {
                 lambdaDirFile = Files.createTempDir();
             }
-            if(!lambdaDirFile.exists()) {
+            if (!lambdaDirFile.exists()) {
                 lambdaDirFile.mkdirs();
             }
 
-            if(getClasspath() != null) {
-                for(File classpathFile : getClasspath()) {
+            if (getClasspath() != null) {
+                for (File classpathFile : getClasspath().getFiles()) {
                     desugarExecArgs.add("--classpath_entry");
                     desugarExecArgs.add(classpathFile.getAbsolutePath());
                 }
             }
 
-            if(getBootstrapClasspath() != null) {
-                for(File bootstrapFile : getBootstrapClasspath()) {
+            if (getBootstrapClasspath() != null) {
+                for (File bootstrapFile : getBootstrapClasspath().getFiles()) {
                     desugarExecArgs.add("--bootclasspath_entry");
                     desugarExecArgs.add(bootstrapFile.getAbsolutePath());
                 }
@@ -182,38 +195,38 @@ class DesugarTask extends DefaultTask {
             desugarExecArgs.add("--" + (rewriteCallsToLongCompare ? "" : "no") + "rewrite_calls_to_long_compare");
             desugarExecArgs.add("--" + (verbose ? "" : "no") + "verbose");
 
-            for(String dontRewriteInvoke: dontRewriteCoreLibraryInvocation) {
+            for (String dontRewriteInvoke : dontRewriteCoreLibraryInvocation.getOrElse(new ArrayList<String>())) {
                 desugarExecArgs.add("--dont_rewrite_core_library_invocation");
                 desugarExecArgs.add(dontRewriteInvoke);
             }
-            for(String emulate: emulateCoreLibraryInterface) {
+            for (String emulate : emulateCoreLibraryInterface.getOrElse(new ArrayList<String>())) {
                 desugarExecArgs.add("--emulate_core_library_interface");
                 desugarExecArgs.add(emulate);
             }
-            for(String libraryMember: retargetCoreLibraryMember) {
+            for (String libraryMember : retargetCoreLibraryMember.getOrElse(new ArrayList<String>())) {
                 desugarExecArgs.add("--retarget_core_library_member");
                 desugarExecArgs.add(libraryMember);
             }
-            for(String libraryPrefix: rewriteCoreLibraryPrefix) {
+            for (String libraryPrefix : rewriteCoreLibraryPrefix.getOrElse(new ArrayList<String>())) {
                 desugarExecArgs.add("--rewrite_core_library_prefix");
                 desugarExecArgs.add(libraryPrefix);
             }
 
             def desugarExecClasspath = project.files(getJavaExecClasspath(project));
 
-            if(additionalJvmArgs == null) {
+            if (additionalJvmArgs == null) {
                 additionalJvmArgs = new ArrayList<String>();
             }
 
             project.javaexec {
                 classpath(desugarExecClasspath)
                 main = 'com.google.devtools.build.android.desugar.Desugar'
-                jvmArgs = additionalJvmArgs
+                jvmArgs = additionalJvmArgs.getOrNull()
                 args = desugarExecArgs
                 systemProperties['jdk.internal.lambda.dumpProxyClasses'] = lambdaDirFile.getAbsolutePath()
             }
         } catch(Exception e) {
-            e.printStackTrace()
+            project.logger.lifecycle(e.getMessage())
             throw e;
         }
     }
@@ -225,32 +238,6 @@ class DesugarTask extends DefaultTask {
         } else {
             classpath.addAll(project.buildscript.configurations.classpath.getFiles())
             getJavaExecClasspath(project.rootProject, classpath)
-        }
-    }
-
-    @InputFiles
-    public FileCollection getBootstrapClasspath() {
-        return this.bootstrapClasspath;
-    }
-
-    public void bootstrapClasspath(FileCollection bootstrapClasspath) {
-        if(this.bootstrapClasspath == null) {
-            this.bootstrapClasspath = bootstrapClasspath;
-        } else {
-            this.bootstrapClasspath = this.bootstrapClasspath.plus(bootstrapClasspath);
-        }
-    }
-
-    @InputFiles
-    public FileCollection getClasspath() {
-        return this.classpath;
-    }
-
-    public void classpath(FileCollection classpath) {
-        if(this.classpath == null) {
-            this.classpath = classpath;
-        } else {
-            this.classpath = this.classpath.plus(classpath);
         }
     }
 }
