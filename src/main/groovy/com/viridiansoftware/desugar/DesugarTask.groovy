@@ -124,92 +124,97 @@ class DesugarTask extends DefaultTask {
             throw new GradleException("Either outputJar or outputDir (folder for classes) must be declared");
         }
 
-        List<String> desugarExecArgs = new ArrayList<String>();
+        try {
+            List<String> desugarExecArgs = new ArrayList<String>();
 
-        desugarExecArgs.add("--input");
-        if(getInputDir() != null && getInputDir().isPresent()) {
-            desugarExecArgs.add(getInputDir().get().asFile.getAbsolutePath());
-        } else {
-            desugarExecArgs.add(inputJar.getAbsolutePath());
-        }
-
-        desugarExecArgs.add("--output");
-        if(getOutputDir() != null && getOutputDir().isPresent()) {
-            desugarExecArgs.add(getOutputDir().get().asFile.getAbsolutePath());
-        } else {
-            desugarExecArgs.add(outputJar.getAbsolutePath());
-        }
-
-        File lambdaDirFile;
-        if(lambdaDir != null) {
-            lambdaDirFile = lambdaDir.get().asFile;
-        } else {
-            lambdaDirFile = Files.createTempDir();
-        }
-        if(!lambdaDirFile.exists()) {
-            lambdaDirFile.mkdirs();
-        }
-
-        if(getClasspath() != null) {
-            for(File classpathFile : getClasspath()) {
-                desugarExecArgs.add("--classpath_entry");
-                desugarExecArgs.add(classpathFile.getAbsolutePath());
+            desugarExecArgs.add("--input");
+            if(getInputDir() != null && getInputDir().isPresent()) {
+                desugarExecArgs.add(getInputDir().get().asFile.getAbsolutePath());
+            } else {
+                desugarExecArgs.add(inputJar.getAbsolutePath());
             }
-        }
 
-        if(getBootstrapClasspath() != null) {
-            for(File bootstrapFile : getBootstrapClasspath()) {
-                desugarExecArgs.add("--bootclasspath_entry");
-                desugarExecArgs.add(bootstrapFile.getAbsolutePath());
+            desugarExecArgs.add("--output");
+            if(getOutputDir() != null && getOutputDir().isPresent()) {
+                desugarExecArgs.add(getOutputDir().get().asFile.getAbsolutePath());
+            } else {
+                desugarExecArgs.add(outputJar.getAbsolutePath());
             }
-        }
 
-        desugarExecArgs.add("--min_sdk_version");
-        desugarExecArgs.add(String.valueOf(minSdkVersion));
+            File lambdaDirFile;
+            if(lambdaDir != null) {
+                lambdaDirFile = lambdaDir.get().asFile;
+            } else {
+                lambdaDirFile = Files.createTempDir();
+            }
+            if(!lambdaDirFile.exists()) {
+                lambdaDirFile.mkdirs();
+            }
 
-        desugarExecArgs.add("--" + (allowEmptyBootclasspath ? "" : "no") + "allow_empty_bootclasspath");
-        desugarExecArgs.add("--" + (bestEffortTolerateMissingDeps ? "" : "no") + "best_effort_tolerate_missing_deps");
-        desugarExecArgs.add("--" + (copyBridgesFromClasspath ? "" : "no") + "best_effort_tolerate_missing_deps");
-        desugarExecArgs.add("--" + (coreLibrary ? "" : "no") + "core_library");
-        desugarExecArgs.add("--" + (desugarInterfaceMethodBodiesIfNeeded ? "" : "no") + "desugar_interface_method_bodies_if_needed");
-        desugarExecArgs.add("--" + (desugarSupportedCoreLibs ? "" : "no") + "desugar_supported_core_libs");
-        desugarExecArgs.add("--" + (desugarTryWithResourcesIfNeeded ? "" : "no") + "desugar_try_with_resources_if_needed");
-        desugarExecArgs.add("--" + (desugarTryWithResourcesOmitRuntimeClasses ? "" : "no") + "desugar_try_with_resources_omit_runtime_classes");
-        desugarExecArgs.add("--" + (emitDependencyMetadataAsNeeded ? "" : "no") + "emit_dependency_metadata_as_needed");
-        desugarExecArgs.add("--" + (legacyJacocoFix ? "" : "no") + "legacy_jacoco_fix");
-        desugarExecArgs.add("--" + (onlyDesugarJavac9ForLint ? "" : "no") + "only_desugar_javac9_for_lint");
-        desugarExecArgs.add("--" + (rewriteCallsToLongCompare ? "" : "no") + "rewrite_calls_to_long_compare");
-        desugarExecArgs.add("--" + (verbose ? "" : "no") + "verbose");
+            if(getClasspath() != null) {
+                for(File classpathFile : getClasspath()) {
+                    desugarExecArgs.add("--classpath_entry");
+                    desugarExecArgs.add(classpathFile.getAbsolutePath());
+                }
+            }
 
-        for(String dontRewriteInvoke: dontRewriteCoreLibraryInvocation) {
-            desugarExecArgs.add("--dont_rewrite_core_library_invocation");
-            desugarExecArgs.add(dontRewriteInvoke);
-        }
-        for(String emulate: emulateCoreLibraryInterface) {
-            desugarExecArgs.add("--emulate_core_library_interface");
-            desugarExecArgs.add(emulate);
-        }
-        for(String libraryMember: retargetCoreLibraryMember) {
-            desugarExecArgs.add("--retarget_core_library_member");
-            desugarExecArgs.add(libraryMember);
-        }
-        for(String libraryPrefix: rewriteCoreLibraryPrefix) {
-            desugarExecArgs.add("--rewrite_core_library_prefix");
-            desugarExecArgs.add(libraryPrefix);
-        }
+            if(getBootstrapClasspath() != null) {
+                for(File bootstrapFile : getBootstrapClasspath()) {
+                    desugarExecArgs.add("--bootclasspath_entry");
+                    desugarExecArgs.add(bootstrapFile.getAbsolutePath());
+                }
+            }
 
-        def desugarExecClasspath = project.files(getJavaExecClasspath(project));
+            desugarExecArgs.add("--min_sdk_version");
+            desugarExecArgs.add(String.valueOf(minSdkVersion));
 
-        if(additionalJvmArgs == null) {
-            additionalJvmArgs = new ArrayList<String>();
-        }
+            desugarExecArgs.add("--" + (allowEmptyBootclasspath ? "" : "no") + "allow_empty_bootclasspath");
+            desugarExecArgs.add("--" + (bestEffortTolerateMissingDeps ? "" : "no") + "best_effort_tolerate_missing_deps");
+            desugarExecArgs.add("--" + (copyBridgesFromClasspath ? "" : "no") + "best_effort_tolerate_missing_deps");
+            desugarExecArgs.add("--" + (coreLibrary ? "" : "no") + "core_library");
+            desugarExecArgs.add("--" + (desugarInterfaceMethodBodiesIfNeeded ? "" : "no") + "desugar_interface_method_bodies_if_needed");
+            desugarExecArgs.add("--" + (desugarSupportedCoreLibs ? "" : "no") + "desugar_supported_core_libs");
+            desugarExecArgs.add("--" + (desugarTryWithResourcesIfNeeded ? "" : "no") + "desugar_try_with_resources_if_needed");
+            desugarExecArgs.add("--" + (desugarTryWithResourcesOmitRuntimeClasses ? "" : "no") + "desugar_try_with_resources_omit_runtime_classes");
+            desugarExecArgs.add("--" + (emitDependencyMetadataAsNeeded ? "" : "no") + "emit_dependency_metadata_as_needed");
+            desugarExecArgs.add("--" + (legacyJacocoFix ? "" : "no") + "legacy_jacoco_fix");
+            desugarExecArgs.add("--" + (onlyDesugarJavac9ForLint ? "" : "no") + "only_desugar_javac9_for_lint");
+            desugarExecArgs.add("--" + (rewriteCallsToLongCompare ? "" : "no") + "rewrite_calls_to_long_compare");
+            desugarExecArgs.add("--" + (verbose ? "" : "no") + "verbose");
 
-        project.javaexec {
-            classpath(desugarExecClasspath)
-            main = 'com.google.devtools.build.android.desugar.Desugar'
-            jvmArgs = additionalJvmArgs
-            args = desugarExecArgs
-            systemProperties['jdk.internal.lambda.dumpProxyClasses'] = lambdaDirFile.getAbsolutePath()
+            for(String dontRewriteInvoke: dontRewriteCoreLibraryInvocation) {
+                desugarExecArgs.add("--dont_rewrite_core_library_invocation");
+                desugarExecArgs.add(dontRewriteInvoke);
+            }
+            for(String emulate: emulateCoreLibraryInterface) {
+                desugarExecArgs.add("--emulate_core_library_interface");
+                desugarExecArgs.add(emulate);
+            }
+            for(String libraryMember: retargetCoreLibraryMember) {
+                desugarExecArgs.add("--retarget_core_library_member");
+                desugarExecArgs.add(libraryMember);
+            }
+            for(String libraryPrefix: rewriteCoreLibraryPrefix) {
+                desugarExecArgs.add("--rewrite_core_library_prefix");
+                desugarExecArgs.add(libraryPrefix);
+            }
+
+            def desugarExecClasspath = project.files(getJavaExecClasspath(project));
+
+            if(additionalJvmArgs == null) {
+                additionalJvmArgs = new ArrayList<String>();
+            }
+
+            project.javaexec {
+                classpath(desugarExecClasspath)
+                main = 'com.google.devtools.build.android.desugar.Desugar'
+                jvmArgs = additionalJvmArgs
+                args = desugarExecArgs
+                systemProperties['jdk.internal.lambda.dumpProxyClasses'] = lambdaDirFile.getAbsolutePath()
+            }
+        } catch(Exception e) {
+            e.printStackTrace()
+            throw e;
         }
     }
 
@@ -229,7 +234,11 @@ class DesugarTask extends DefaultTask {
     }
 
     public void bootstrapClasspath(FileCollection bootstrapClasspath) {
-        this.bootstrapClasspath = this.bootstrapClasspath.plus(bootstrapClasspath);
+        if(this.bootstrapClasspath == null) {
+            this.bootstrapClasspath = bootstrapClasspath;
+        } else {
+            this.bootstrapClasspath = this.bootstrapClasspath.plus(bootstrapClasspath);
+        }
     }
 
     @InputFiles
@@ -238,6 +247,10 @@ class DesugarTask extends DefaultTask {
     }
 
     public void classpath(FileCollection classpath) {
-        this.classpath = this.classpath.plus(classpath);
+        if(this.classpath == null) {
+            this.classpath = classpath;
+        } else {
+            this.classpath = this.classpath.plus(classpath);
+        }
     }
 }
